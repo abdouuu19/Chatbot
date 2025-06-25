@@ -195,6 +195,91 @@ const getMediaResponse = (language, mediaType = 'media') => {
     return responses[language] || responses.english;
 };
 
+// Personalized greeting function
+const getPersonalizedGreeting = (userName, language) => {
+    const greetings = {
+        english: {
+            text: `Hi ${userName}! 👋 I'm ChatWme, an AI assistant created by Abdou! I can help you with anything you need. 🤖✨\n\nWant to check out my creator's profile? Click below! 👇`,
+            buttons: [{
+                type: "web_url",
+                url: "https://www.facebook.com/abdou.tsu.446062",
+                title: "👨‍💻 View Abdou's Profile"
+            }]
+        },
+        arabic: {
+            text: `مرحباً ${userName}! 👋 أنا ChatWme، مساعد ذكي من إبداع عبدو! يمكنني مساعدتك في أي شيء تحتاجه. 🤖✨\n\nتريد زيارة صفحة منشئي؟ اضغط أدناه! 👇`,
+            buttons: [{
+                type: "web_url",
+                url: "https://www.facebook.com/abdou.tsu.446062",
+                title: "👨‍💻 عرض ملف عبدو"
+            }]
+        },
+        french: {
+            text: `Salut ${userName}! 👋 Je suis ChatWme, un assistant IA créé par Abdou! Je peux t'aider avec tout ce dont tu as besoin. 🤖✨\n\nTu veux voir le profil de mon créateur? Clique ci-dessous! 👇`,
+            buttons: [{
+                type: "web_url",
+                url: "https://www.facebook.com/abdou.tsu.446062",
+                title: "👨‍💻 Voir le profil d'Abdou"
+            }]
+        }
+    };
+    
+    return greetings[language] || greetings.english;
+};
+
+// Check if this is a greeting message
+const isGreetingMessage = (text) => {
+    const greetingPatterns = [
+        // English greetings
+        /^(hi|hello|hey|greetings|good morning|good afternoon|good evening)[\s!]*$/i,
+        /^(start|begin|let's start|let's begin)[\s!]*$/i,
+        
+        // Arabic greetings
+        /^(مرحبا|مرحباً|أهلا|أهلاً|السلام عليكم|صباح الخير|مساء الخير|هلا|هلو)[\s!]*$/i,
+        /^(ابدأ|لنبدأ|ابدا|لنبدا)[\s!]*$/i,
+        
+        // French greetings
+        /^(salut|bonjour|bonsoir|coucou|hello|bonne matinée)[\s!]*$/i,
+        /^(commencer|commençons|début|démarrer)[\s!]*$/i,
+        
+        // Darija/Moroccan greetings
+        /^(أهلين|واش راك|كيراك|سلام|أشنو أخبار|لاباس|مرحبا بيك)[\s!]*$/i
+    ];
+    
+    return greetingPatterns.some(pattern => pattern.test(text.trim()));
+};
+
+// Enhanced user profile fetching
+const getEnhancedUserProfile = async (senderId) => {
+    try {
+        const response = await axios.get(`https://graph.facebook.com/v18.0/${senderId}`, {
+            params: {
+                fields: 'first_name,last_name,name,profile_pic,locale,timezone',
+                access_token: PAGE_ACCESS_TOKEN
+            }
+        });
+        
+        return {
+            firstName: response.data.first_name || 'Friend',
+            lastName: response.data.last_name || '',
+            fullName: response.data.name || response.data.first_name || 'Friend',
+            profilePic: response.data.profile_pic,
+            locale: response.data.locale,
+            timezone: response.data.timezone
+        };
+    } catch (error) {
+        logger.error('Error getting enhanced user profile:', error.response?.data || error.message);
+        return {
+            firstName: 'Friend',
+            lastName: '',
+            fullName: 'Friend',
+            profilePic: null,
+            locale: 'en_US',
+            timezone: null
+        };
+    }
+};
+
 // Simplified Groq API integration
 const callGroqAPI = async (messages, language) => {
     const models = {
@@ -394,148 +479,6 @@ const getUserProfile = async (senderId) => {
 // Main message processing function
 const processMessage = async (senderId, messageText, attachments = null) => {
     try {
-
-        await markMessageAsSeen(senderId);
-
-        await sendTypingIndicator(senderId, 'typing_on');
-        
-        // Get or create user profile
-        let userProfile = userProfiles.get(senderId);
-        if (!userProfile) {
-            const fbProfile = await getUserProfile(senderId);
-            userProfile = {
-                id: senderId,
-                firstName: fbProfile?.first_name || 'Friend',
-                conversationStarted: new Date(),
-                messageCount: 0
-            };
-            userProfiles.set(senderId, userProfile);
-        }
-        
-        userProfile.messageCount++;
-        userProfile.lastMessageTime = new Date();
-        
-        // Detect language first (Darija will be treated as Arabic)
-        const detectedLanguage = LanguageDetector.detect(messageText || '');
-        logger.info(`Detected language: ${detectedLanguage} for user ${senderId}`);
-        
-        // Handle media attachments FIRST - before any AI processing
-        if (attachments && attachments.length > 0) {
-            let mediaType = 'media';
-            
-            for (const attachment of attachments) {
-                if (attachment.type === 'image') {
-                    mediaType = 'image';
-                    break;
-                } else if (attachment.type === 'audio') {
-                    mediaType = 'audio';
-                    break;
-                } else if (attachment.type === 'video') {
-                    mediaType = 'video';
-                    break;
-                }
-            }
-            
-            const mediaResponse = getMediaResponse(detectedLanguage, mediaType);
-            await sendTypingIndicator(senderId, 'typing_off');
-            await sendMessage(senderId, mediaResponse);
-            return;
-        }
-        
-        // If no text message, return
-        if (!messageText || messageText.trim() === '') {
-            await sendTypingIndicator(senderId, 'typing_off');
-            return;
-        }
-        
-        // Personalized greeting function
-const getPersonalizedGreeting = (userName, language) => {
-    const greetings = {
-        english: {
-            text: `Hi ${userName}! 👋 I'm ChatWme, an AI assistant created by Abdou! I can help you with anything you need. 🤖✨\n\nWant to check out my creator's profile? Click below! 👇`,
-            buttons: [{
-                type: "web_url",
-                url: "https://www.facebook.com/abdou.tsu.446062",
-                title: "👨‍💻 View Abdou's Profile"
-            }]
-        },
-        arabic: {
-            text: `مرحباً ${userName}! 👋 أنا ChatWme، مساعد ذكي من إبداع عبدو! يمكنني مساعدتك في أي شيء تحتاجه. 🤖✨\n\nتريد زيارة صفحة منشئي؟ اضغط أدناه! 👇`,
-            buttons: [{
-                type: "web_url",
-                url: "https://www.facebook.com/abdou.tsu.446062",
-                title: "👨‍💻 عرض ملف عبدو"
-            }]
-        },
-        french: {
-            text: `Salut ${userName}! 👋 Je suis ChatWme, un assistant IA créé par Abdou! Je peux t'aider avec tout ce dont tu as besoin. 🤖✨\n\nTu veux voir le profil de mon créateur? Clique ci-dessous! 👇`,
-            buttons: [{
-                type: "web_url",
-                url: "https://www.facebook.com/abdou.tsu.446062",
-                title: "👨‍💻 Voir le profil d'Abdou"
-            }]
-        }
-    };
-    
-    return greetings[language] || greetings.english;
-};
-
-// Check if this is a greeting message
-const isGreetingMessage = (text) => {
-    const greetingPatterns = [
-        // English greetings
-        /^(hi|hello|hey|greetings|good morning|good afternoon|good evening)[\s!]*$/i,
-        /^(start|begin|let's start|let's begin)[\s!]*$/i,
-        
-        // Arabic greetings
-        /^(مرحبا|مرحباً|أهلا|أهلاً|السلام عليكم|صباح الخير|مساء الخير|هلا|هلو)[\s!]*$/i,
-        /^(ابدأ|لنبدأ|ابدا|لنبدا)[\s!]*$/i,
-        
-        // French greetings
-        /^(salut|bonjour|bonsoir|coucou|hello|bonne matinée)[\s!]*$/i,
-        /^(commencer|commençons|début|démarrer)[\s!]*$/i,
-        
-        // Darija/Moroccan greetings
-        /^(أهلين|واش راك|كيراك|سلام|أشنو أخبار|لاباس|مرحبا بيك)[\s!]*$/i
-    ];
-    
-    return greetingPatterns.some(pattern => pattern.test(text.trim()));
-};
-
-// Enhanced user profile fetching
-const getEnhancedUserProfile = async (senderId) => {
-    try {
-        const response = await axios.get(`https://graph.facebook.com/v18.0/${senderId}`, {
-            params: {
-                fields: 'first_name,last_name,name,profile_pic,locale,timezone',
-                access_token: PAGE_ACCESS_TOKEN
-            }
-        });
-        
-        return {
-            firstName: response.data.first_name || 'Friend',
-            lastName: response.data.last_name || '',
-            fullName: response.data.name || response.data.first_name || 'Friend',
-            profilePic: response.data.profile_pic,
-            locale: response.data.locale,
-            timezone: response.data.timezone
-        };
-    } catch (error) {
-        logger.error('Error getting enhanced user profile:', error.response?.data || error.message);
-        return {
-            firstName: 'Friend',
-            lastName: '',
-            fullName: 'Friend',
-            profilePic: null,
-            locale: 'en_US',
-            timezone: null
-        };
-    }
-};
-
-// Updated main message processing function
-const processMessage = async (senderId, messageText, attachments = null) => {
-    try {
         // Mark message as seen IMMEDIATELY
         await markMessageAsSeen(senderId);
         
@@ -595,7 +538,7 @@ const processMessage = async (senderId, messageText, attachments = null) => {
             return;
         }
         
-        // 🔥 NEW: Check for greeting messages OR first-time users
+        // Check for greeting messages OR first-time users
         if (isGreetingMessage(messageText) || !userProfile.hasBeenGreeted) {
             userProfile.hasBeenGreeted = true;
             const greeting = getPersonalizedGreeting(userProfile.firstName, detectedLanguage);
@@ -654,7 +597,6 @@ const processMessage = async (senderId, messageText, attachments = null) => {
         await sendMessage(senderId, errorResponses[language] || errorResponses.english);
     }
 };
-      
 
 // Webhook verification
 app.get('/webhook', (req, res) => {
@@ -723,6 +665,7 @@ app.get('/health', (req, res) => {
         activeUsers: conversationMemory.size
     });
 });
+
 
 // Clean up old conversations
 cron.schedule('0 * * * *', () => {
