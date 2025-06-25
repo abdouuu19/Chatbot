@@ -150,26 +150,17 @@ const isAskingAboutCreator = (text) => {
     return creatorPatterns.some(pattern => pattern.test(text));
 };
 
-// Creator responses (removed Darija)
+// Creator responses (removed Darija) - Updated with text-based profile links
 const getCreatorResponse = (language) => {
     const responses = {
         english: {
-            text: "🤖✨ I'm ChatWme, an AI assistant proudly created by Abdou! He's an amazing developer who built me to be helpful and smart. I can speak multiple languages including English, Arabic, and French! 🚀\n\nWant to meet my awesome creator? Click below! 👇",
-                url: "https://www.facebook.com/abdou.tsu.446062",
-                title: "👨‍💻 Meet Abdou!"
-            }]
+            text: "🤖✨ I'm ChatWme, an AI assistant proudly created by Abdou! He's an amazing developer who built me to be helpful and smart. I can speak multiple languages including English, Arabic, and French! 🚀\n\n👨‍💻 Meet my awesome creator: https://www.facebook.com/abdou.tsu.446062"
         },
         arabic: {
-            text: "🤖✨ أنا ChatWme، مساعد ذكي من إبداع المطور الرائع عبدو! هو مطور مذهل صنعني لأكون مفيد وذكي. أستطيع التحدث بعدة لغات منها الإنجليزية والعربية والفرنسية! 🚀\n\nتريد أن تتعرف على منشئي الرائع؟ اضغط أدناه! 👇",
-                url: "https://www.facebook.com/abdou.tsu.446062",
-                title: "👨‍💻 تعرف على عبدو!"
-            }]
+            text: "🤖✨ أنا ChatWme، مساعد ذكي من إبداع المطور الرائع عبدو! هو مطور مذهل صنعني لأكون مفيد وذكي. أستطيع التحدث بعدة لغات منها الإنجليزية والعربية والفرنسية! 🚀\n\n👨‍💻 تعرف على منشئي الرائع: https://www.facebook.com/abdou.tsu.446062"
         },
         french: {
-            text: "🤖✨ Je suis ChatWme, un assistant IA fièrement créé par Abdou! C'est un développeur incroyable qui m'a conçu pour être utile et intelligent. Je peux parler plusieurs langues dont l'anglais, l'arabe et le français! 🚀\n\nVous voulez rencontrer mon créateur génial? Cliquez ci-dessous! 👇",
-                url: "https://www.facebook.com/abdou.tsu.446062",
-                title: "👨‍💻 Rencontrer Abdou!"
-            }]
+            text: "🤖✨ Je suis ChatWme, un assistant IA fièrement créé par Abdou! C'est un développeur incroyable qui m'a conçu pour être utile et intelligent. Je peux parler plusieurs langues dont l'anglais, l'arabe et le français! 🚀\n\n👨‍💻 Rencontrer mon créateur génial: https://www.facebook.com/abdou.tsu.446062"
         }
     };
     
@@ -189,33 +180,22 @@ const getMediaResponse = (language, mediaType = 'media') => {
     return responses[language] || responses.english;
 };
 
-// Personalized greeting function
+// Personalized greeting function - Updated with text-based profile links
 const getPersonalizedGreeting = (userName, language) => {
     const greetings = {
         english: {
-            text: `Hi ${userName}! 👋 I'm ChatWme, an AI assistant created by Abdou! I can help you with anything you need. 🤖✨\n\nWant to check out my creator's profile? Click below! 👇`,
-                url: "https://www.facebook.com/abdou.tsu.446062",
-                title: "👨‍💻 View Abdou's Profile"
-            }]
+            text: `Hi ${userName}! 👋 I'm ChatWme, an AI assistant created by Abdou! I can help you with anything you need. 🤖✨\n\n👨‍💻 Check out my creator's profile: https://www.facebook.com/abdou.tsu.446062`
         },
         arabic: {
-            text: `مرحباً ${userName}! 👋 أنا ChatWme، مساعد ذكي من إبداع عبدو! يمكنني مساعدتك في أي شيء تحتاجه. 🤖✨\n\nتريد زيارة صفحة منشئي؟ اضغط أدناه! 👇`,
-                url: "https://www.facebook.com/abdou.tsu.446062",
-                title: "👨‍💻 عرض ملف عبدو"
-            }]
+            text: `مرحباً ${userName}! 👋 أنا ChatWme، مساعد ذكي من إبداع عبدو! يمكنني مساعدتك في أي شيء تحتاجه. 🤖✨\n\n👨‍💻 زر صفحة منشئي: https://www.facebook.com/abdou.tsu.446062`
         },
         french: {
-            text: `Salut ${userName}! 👋 Je suis ChatWme, un assistant IA créé par Abdou! Je peux t'aider avec tout ce dont tu as besoin. 🤖✨\n\nTu veux voir le profil de mon créateur? Clique ci-dessous! 👇`,
-       
-                url: "https://www.facebook.com/abdou.tsu.446062",
-                title: "👨‍💻 Voir le profil d'Abdou"
-            }]
+            text: `Salut ${userName}! 👋 Je suis ChatWme, un assistant IA créé par Abdou! Je peux t'aider avec tout ce dont tu as besoin. 🤖✨\n\n👨‍💻 Voir le profil de mon créateur: https://www.facebook.com/abdou.tsu.446062`
         }
     };
     
     return greetings[language] || greetings.english;
 };
-
 // Check if this is a greeting message
 const isGreetingMessage = (text) => {
     const greetingPatterns = [
