@@ -204,7 +204,7 @@ const isAskingAboutCreator = (text) => {
     // Arabic patterns (including Darija)
     const arabicPatterns = [
         'من صنعك', 'مين صنعك', 'من خلقك', 'شكون صنعك', 'من عملك', 'مين عملك',
-        'من انت', 'شكون نت', 'منشئك', 'صانعك', 'مطورك'
+        'من انت', 'شكون نت', 'منشئك', 'صانعك', 'مطورك','من أنت',
     ];
     
     // French patterns
