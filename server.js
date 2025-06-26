@@ -223,21 +223,32 @@ const getEnhancedUserProfile = async (senderId) => {
     try {
         const response = await axios.get(`https://graph.facebook.com/v18.0/${senderId}`, {
             params: {
-                fields: 'first_name,last_name,name,profile_pic,locale,timezone',
+                fields: 'first_name,last_name,profile_pic', // Only request available fields
                 access_token: PAGE_ACCESS_TOKEN
             }
         });
-        
+
+        console.log('Successfully retrieved user profile:', response.data);
+       
         return {
             firstName: response.data.first_name || 'Friend',
             lastName: response.data.last_name || '',
-            fullName: response.data.name || response.data.first_name || 'Friend',
-            profilePic: response.data.profile_pic,
-            locale: response.data.locale,
-            timezone: response.data.timezone
+            fullName: response.data.first_name ? 
+                `${response.data.first_name} ${response.data.last_name || ''}`.trim() : 
+                'Friend',
+            profilePic: response.data.profile_pic || null,
+            locale: 'en_US', // Default fallback
+            timezone: null   // Default fallback
         };
     } catch (error) {
-        logger.error('Error getting enhanced user profile:', error.response?.data || error.message);
+        console.error('Error getting user profile:', {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            senderId: senderId
+        });
+        
+        // Return fallback data
         return {
             firstName: 'Friend',
             lastName: '',
