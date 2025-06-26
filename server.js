@@ -312,10 +312,9 @@ const callGroqAPI = async (messages, language) => {
     const selectedModel = detectedLang === 'arabic' ? models.arabic : models.english;
     
     // Updated system prompt that emphasizes creator identity and forces Arabic response for Darija
-    const systemPrompt = detectedLang === 'arabic' ? 
-        'أنت ChatwMe، مساعد ذكي صنعه عبدو. أجب بذكاء ووضوح بالعربية الفصحى في جملة أو جملتين قصيرتين. لا تذكر أي فريق أو شركة، أنت من صنع عبدو فقط. لا تستخدم الدارجة أبداً.' :
-        'You are ChatwMe, an AI assistant created by Abdou. Answer intelligently and clearly in 1-2 short sentences. Never mention any team or company, you are created by Abdou only.';
-    
+   const systemPrompt = detectedLang === 'arabic' ? 
+    'أنت ChatwMe، مساعد ذكي مفيد. أجب على الأسئلة بطبيعية ووضوح باللغة العربية الفصحى. كن مفيداً ومختصراً في إجاباتك. لا تذكر من صنعك إلا إذا سُئلت مباشرة عن هويتك أو منشئك.' :
+    'You are ChatwMe, a helpful AI assistant. Answer questions naturally and clearly in 1-2 sentences. Be helpful and concise. Only mention your creator when directly asked about your identity or who made you.';
     const finalMessages = [
         { role: 'system', content: systemPrompt },
         ...messages.filter(msg => msg.role !== 'system')
