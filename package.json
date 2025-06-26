@@ -1,7 +1,7 @@
 {
   "name": "chatwme-facebook-bot",
   "version": "1.0.0",
-  "description": "ChatWme - Intelligent multilingual Facebook Messenger bot powered by Groq AI, created by Abdou",
+  "description": "ChatwMe - Intelligent multilingual Facebook Messenger bot powered by Groq AI, created by Abdou",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
