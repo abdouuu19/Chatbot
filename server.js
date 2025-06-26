@@ -150,17 +150,32 @@ const isAskingAboutCreator = (text) => {
     return creatorPatterns.some(pattern => pattern.test(text));
 };
 
-// Creator responses (removed Darija) - Updated with text-based profile links
+// Creator responses (removed Darija)
 const getCreatorResponse = (language) => {
     const responses = {
         english: {
-            text: "🤖✨ I'm ChatWme, an AI assistant proudly created by Abdou! He's an amazing developer who built me to be helpful and smart. I can speak multiple languages including English, Arabic, and French! 🚀\n\n👨‍💻 Meet my awesome creator: https://www.facebook.com/abdou.tsu.446062"
+            text: "🤖✨ I'm ChatwMe, an AI assistant proudly created by Abdou! He's an amazing developer who built me to be helpful and smart. I can speak multiple languages including English, Arabic, and French! 🚀\n\nWant to meet my awesome creator? Click below! 👇",
+            buttons: [{
+                type: "web_url",
+                url: "https://www.facebook.com/abdou.tsu.446062",
+                title: "👨‍💻 Meet Abdou!"
+            }]
         },
         arabic: {
-            text: "🤖✨ أنا ChatWme، مساعد ذكي من إبداع المطور الرائع عبدو! هو مطور مذهل صنعني لأكون مفيد وذكي. أستطيع التحدث بعدة لغات منها الإنجليزية والعربية والفرنسية! 🚀\n\n👨‍💻 تعرف على منشئي الرائع: https://www.facebook.com/abdou.tsu.446062"
+            text: "🤖✨ أنا ChatwMe، مساعد ذكي من إبداع المطور الرائع عبدو! هو مطور مذهل صنعني لأكون مفيد وذكي. أستطيع التحدث بعدة لغات منها الإنجليزية والعربية والفرنسية! 🚀\n\nتريد أن تتعرف على منشئي الرائع؟ اضغط أدناه! 👇",
+            buttons: [{
+                type: "web_url",
+                url: "https://www.facebook.com/abdou.tsu.446062",
+                title: "👨‍💻 تعرف على عبدو!"
+            }]
         },
         french: {
-            text: "🤖✨ Je suis ChatWme, un assistant IA fièrement créé par Abdou! C'est un développeur incroyable qui m'a conçu pour être utile et intelligent. Je peux parler plusieurs langues dont l'anglais, l'arabe et le français! 🚀\n\n👨‍💻 Rencontrer mon créateur génial: https://www.facebook.com/abdou.tsu.446062"
+            text: "🤖✨ Je suis ChatwMe, un assistant IA fièrement créé par Abdou! C'est un développeur incroyable qui m'a conçu pour être utile et intelligent. Je peux parler plusieurs langues dont l'anglais, l'arabe et le français! 🚀\n\nVous voulez rencontrer mon créateur génial? Cliquez ci-dessous! 👇",
+            buttons: [{
+                type: "web_url",
+                url: "https://www.facebook.com/abdou.tsu.446062",
+                title: "👨‍💻 Rencontrer Abdou!"
+            }]
         }
     };
     
@@ -180,22 +195,38 @@ const getMediaResponse = (language, mediaType = 'media') => {
     return responses[language] || responses.english;
 };
 
-// Personalized greeting function - Updated with text-based profile links
+// Personalized greeting function
 const getPersonalizedGreeting = (userName, language) => {
     const greetings = {
         english: {
-            text: `Hi ${userName}! 👋 I'm ChatWme, an AI assistant created by Abdou! I can help you with anything you need. 🤖✨\n\n👨‍💻 Check out my creator's profile: https://www.facebook.com/abdou.tsu.446062`
+            text: `Hi ${userName}! 👋 I'm ChatwMe, an AI assistant created by Abdou! I can help you with anything you need. 🤖✨\n\nWant to check out my creator's profile? Click below! 👇`,
+            buttons: [{
+                type: "web_url",
+                url: "https://www.facebook.com/abdou.tsu.446062",
+                title: "👨‍💻 View Abdou's Profile"
+            }]
         },
         arabic: {
-            text: `مرحباً ${userName}! 👋 أنا ChatWme، مساعد ذكي من إبداع عبدو! يمكنني مساعدتك في أي شيء تحتاجه. 🤖✨\n\n👨‍💻 زر صفحة منشئي: https://www.facebook.com/abdou.tsu.446062`
+            text: `مرحباً ${userName}! 👋 أنا ChatwMe، مساعد ذكي من إبداع عبدو! يمكنني مساعدتك في أي شيء تحتاجه. 🤖✨\n\nتريد زيارة صفحة منشئي؟ اضغط أدناه! 👇`,
+            buttons: [{
+                type: "web_url",
+                url: "https://www.facebook.com/abdou.tsu.446062",
+                title: "👨‍💻 عرض ملف عبدو"
+            }]
         },
         french: {
-            text: `Salut ${userName}! 👋 Je suis ChatWme, un assistant IA créé par Abdou! Je peux t'aider avec tout ce dont tu as besoin. 🤖✨\n\n👨‍💻 Voir le profil de mon créateur: https://www.facebook.com/abdou.tsu.446062`
+            text: `Salut ${userName}! 👋 Je suis ChatwMe, un assistant IA créé par Abdou! Je peux t'aider avec tout ce dont tu as besoin. 🤖✨\n\nTu veux voir le profil de mon créateur? Clique ci-dessous! 👇`,
+            buttons: [{
+                type: "web_url",
+                url: "https://www.facebook.com/abdou.tsu.446062",
+                title: "👨‍💻 Voir le profil d'Abdou"
+            }]
         }
     };
     
     return greetings[language] || greetings.english;
 };
+
 // Check if this is a greeting message
 const isGreetingMessage = (text) => {
     const greetingPatterns = [
@@ -220,17 +251,47 @@ const isGreetingMessage = (text) => {
 
 // Enhanced user profile fetching
 const getEnhancedUserProfile = async (senderId) => {
-    // Skip the API call entirely for now to avoid blocking the bot
-    logger.info(`Skipping user profile API call for ${senderId} due to permissions issue`);
-    return {
-        firstName: 'Friend',
-        lastName: '',
-        fullName: 'Friend',
-        profilePic: null,
-        locale: 'en_US',
-        timezone: null
-    };
+    try {
+        const response = await axios.get(`https://graph.facebook.com/v18.0/${senderId}`, {
+            params: {
+                fields: 'first_name,last_name,profile_pic', // Only request available fields
+                access_token: PAGE_ACCESS_TOKEN
+            }
+        });
+
+        console.log('Successfully retrieved user profile:', response.data);
+       
+        return {
+            firstName: response.data.first_name || 'Friend',
+            lastName: response.data.last_name || '',
+            fullName: response.data.first_name ? 
+                `${response.data.first_name} ${response.data.last_name || ''}`.trim() : 
+                'Friend',
+            profilePic: response.data.profile_pic || null,
+            locale: 'en_US', // Default fallback
+            timezone: null   // Default fallback
+        };
+    } catch (error) {
+        console.error('Error getting user profile:', {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            senderId: senderId
+        });
+        
+        // Return fallback data
+        return {
+            firstName: 'Friend',
+            lastName: '',
+            fullName: 'Friend',
+            profilePic: null,
+            locale: 'en_US',
+            timezone: null
+        };
+    }
 };
+
+
 // Simplified Groq API integration
 const callGroqAPI = async (messages, language) => {
     const models = {
@@ -252,8 +313,8 @@ const callGroqAPI = async (messages, language) => {
     
     // Updated system prompt that emphasizes creator identity and forces Arabic response for Darija
     const systemPrompt = detectedLang === 'arabic' ? 
-        'أنت ChatWme، مساعد ذكي صنعه عبدو. أجب بذكاء ووضوح بالعربية الفصحى في جملة أو جملتين قصيرتين. لا تذكر أي فريق أو شركة، أنت من صنع عبدو فقط. لا تستخدم الدارجة أبداً.' :
-        'You are ChatWme, an AI assistant created by Abdou. Answer intelligently and clearly in 1-2 short sentences. Never mention any team or company, you are created by Abdou only.';
+        'أنت ChatwMe، مساعد ذكي صنعه عبدو. أجب بذكاء ووضوح بالعربية الفصحى في جملة أو جملتين قصيرتين. لا تذكر أي فريق أو شركة، أنت من صنع عبدو فقط. لا تستخدم الدارجة أبداً.' :
+        'You are ChatwMe, an AI assistant created by Abdou. Answer intelligently and clearly in 1-2 short sentences. Never mention any team or company, you are created by Abdou only.';
     
     const finalMessages = [
         { role: 'system', content: systemPrompt },
@@ -641,12 +702,12 @@ app.use((error, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-    logger.info(`🚀 ChatWme Bot Server is running on port ${PORT}`);
+    logger.info(`🚀 ChatwMe Bot Server is running on port ${PORT}`);
     logger.info(`✅ Webhook URL: ${process.env.WEBHOOK_URL || `http://localhost:${PORT}`}/webhook`);
     logger.info(`🤖 Bot created by Abdou is ready to chat!`);
     console.log(`
     ╔═══════════════════════════════════════╗
-    ║          ChatWme Bot Server           ║
+    ║         ChatwMe Bot Server           ║
     ║              by Abdou                 ║
     ║                                       ║
     ║  🚀 Server running on port ${PORT}       ║
