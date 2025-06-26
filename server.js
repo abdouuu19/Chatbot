@@ -51,9 +51,63 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
-// User conversation memory
+// Enhanced User conversation memory with persistence
 const conversationMemory = new Map();
 const userProfiles = new Map();
+
+// User session management - FIXED
+class UserSessionManager {
+    static getUser(senderId) {
+        return userProfiles.get(senderId);
+    }
+    
+    static createOrUpdateUser(senderId, fbProfile) {
+        const existingUser = userProfiles.get(senderId);
+        const now = new Date();
+        
+        if (existingUser) {
+            // Update existing user - DON'T reset welcome status
+            existingUser.lastMessageTime = now;
+            existingUser.messageCount++;
+            existingUser.firstName = fbProfile.firstName; // Update in case name changed
+            existingUser.fullName = fbProfile.fullName;
+            return { user: existingUser, isNewUser: false };
+        } else {
+            // Create new user
+            const newUser = {
+                id: senderId,
+                firstName: fbProfile.firstName,
+                fullName: fbProfile.fullName,
+                profilePic: fbProfile.profilePic,
+                locale: fbProfile.locale,
+                conversationStarted: now,
+                lastMessageTime: now,
+                messageCount: 1,
+                isWelcomed: false,
+                preferredLanguage: 'english'
+            };
+            userProfiles.set(senderId, newUser);
+            return { user: newUser, isNewUser: true };
+        }
+    }
+    
+    static shouldShowWelcome(user) {
+        return !user.isWelcomed;
+    }
+    
+    static markWelcomed(userId) {
+        const user = userProfiles.get(userId);
+        if (user) {
+            user.isWelcomed = true;
+        }
+    }
+    
+    static isReturningUser(user) {
+        const hoursSinceLastMessage = user.lastMessageTime ? 
+            (Date.now() - user.lastMessageTime.getTime()) / (1000 * 60 * 60) : 999;
+        return user.messageCount > 1 && hoursSinceLastMessage < 72; // 3 days
+    }
+}
 
 // Enhanced Language detection with smarter patterns
 class LanguageDetector {
@@ -88,8 +142,10 @@ class LanguageDetector {
         }
     };
 
-    static detect(text) {
-        if (!text || text.trim() === '') return 'english';
+    static detect(text, userProfile = null) {
+        if (!text || text.trim() === '') {
+            return userProfile?.preferredLanguage || 'english';
+        }
         
         const scores = { arabic: 0, french: 0, english: 0 };
         const lowerText = text.toLowerCase();
@@ -114,8 +170,14 @@ class LanguageDetector {
             scores[a] > scores[b] ? a : b
         );
         
-        // Return detected language if score > 0, otherwise default to English
-        return scores[detectedLang] > 0 ? detectedLang : 'english';
+        // Update user's preferred language if we detected something
+        if (userProfile && scores[detectedLang] > 0) {
+            userProfile.preferredLanguage = detectedLang;
+        }
+        
+        // Return detected language if score > 0, otherwise use user preference or default
+        return scores[detectedLang] > 0 ? detectedLang : 
+               (userProfile?.preferredLanguage || 'english');
     }
 }
 
@@ -177,70 +239,80 @@ const isAskingAboutProfile = (text) => {
     return profilePatterns.some(pattern => lowerText.includes(pattern));
 };
 
-// Creator responses
+// Creator responses - SHORTENED
 const getCreatorResponse = (language) => {
     const responses = {
         english: {
-            text: "🤖 I'm ChatwMe, an AI assistant created by Abdou. I can communicate in multiple languages.\n\n👨‍💻 Meet my creator: https://facebook.com/abdou.tsu.446062"
+            text: "🤖 I'm ChatwMe, created by Abdou.\n👨‍💻 https://facebook.com/abdou.tsu.446062"
         },
         arabic: {
-            text: "🤖 أنا ChatwMe، مساعد ذكي من إبداع عبدو. يمكنني التواصل بلغات متعددة.\n\n👨‍💻 تعرف على منشئي: https://facebook.com/abdou.tsu.446062"
+            text: "🤖 أنا ChatwMe، من إبداع عبدو.\n👨‍💻 https://facebook.com/abdou.tsu.446062"
         },
         french: {
-            text: "🤖 Je suis ChatwMe, un assistant IA créé par Abdou. Je peux communiquer en plusieurs langues.\n\n👨‍💻 Rencontrer mon créateur: https://facebook.com/abdou.tsu.446062"
+            text: "🤖 Je suis ChatwMe, créé par Abdou.\n👨‍💻 https://facebook.com/abdou.tsu.446062"
         }
     };
     
     return responses[language] || responses.english;
 };
 
-// Profile link responses
+// Profile link responses - SHORTENED
 const getProfileResponse = (language) => {
     const responses = {
         english: {
-            text: "📱 Here's Abdou's Facebook profile - my creator and developer.\n\n👨‍💻 https://facebook.com/abdou.tsu.446062"
+            text: "👨‍💻 Abdou's Facebook:\nhttps://facebook.com/abdou.tsu.446062"
         },
         arabic: {
-            text: "📱 هذا ملف عبدو الشخصي على فيسبوك - منشئي والمطور.\n\n👨‍💻 https://facebook.com/abdou.tsu.446062"
+            text: "👨‍💻 فيسبوك عبدو:\nhttps://facebook.com/abdou.tsu.446062"
         },
         french: {
-            text: "📱 Voici le profil Facebook d'Abdou - mon créateur et développeur.\n\n👨‍💻 https://facebook.com/abdou.tsu.446062"
+            text: "👨‍💻 Facebook d'Abdou:\nhttps://facebook.com/abdou.tsu.446062"
         }
     };
     
     return responses[language] || responses.english;
 };
 
-
-// Media responses
+// Media responses - SHORTENED
 const getMediaResponse = (language, mediaType = 'media') => {
     const responses = {
-        english: `I'm a text-based AI assistant and can't process ${mediaType === 'image' ? 'images' : mediaType === 'audio' ? 'voice messages' : 'media files'}. Please send me a text message and I'll be happy to help you! 📝✨`,
-        
-        arabic: `أنا مساعد ذكي نصي ولا أستطيع معالجة ${mediaType === 'image' ? 'الصور' : mediaType === 'audio' ? 'الرسائل الصوتية' : 'ملفات الوسائط'}. يرجى إرسال رسالة نصية وسأكون سعيداً لمساعدتك! 📝✨`,
-        
-        french: `Je suis un assistant IA textuel et je ne peux pas traiter ${mediaType === 'image' ? 'les images' : mediaType === 'audio' ? 'les messages vocaux' : 'les fichiers multimédias'}. Veuillez m'envoyer un message texte et je serai ravi de vous aider! 📝✨`
+        english: `I only process text messages. Please send text instead! 📝`,
+        arabic: `أعالج الرسائل النصية فقط. أرسل نصاً من فضلك! 📝`,
+        french: `Je traite uniquement les messages texte. Envoyez du texte svp! 📝`
     };
     
     return responses[language] || responses.english;
 };
 
-// First-time welcome message
+// Welcome message - SHORTENED and SMARTER
 const getWelcomeMessage = (userName, language) => {
     const greetings = {
         english: {
-            text: `Hello ${userName}! I'm ChatwMe, your AI assistant. How can I help you today?\n\n👨‍💻 Meet my creator: https://facebook.com/abdou.tsu.446062`
+            text: `Hello ${userName}! I'm ChatwMe 🤖\nHow can I help you?`
         },
         arabic: {
-            text: `مرحباً ${userName}! أنا ChatwMe، مساعدك الذكي. كيف يمكنني مساعدتك اليوم؟\n\n👨‍💻 تعرف على منشئي: https://facebook.com/abdou.tsu.446062`
+            text: `مرحباً ${userName}! أنا ChatwMe 🤖\nكيف يمكنني مساعدتك؟`
         },
         french: {
-            text: `Bonjour ${userName}! Je suis ChatwMe, votre assistant IA. Comment puis-je vous aider aujourd'hui?\n\n👨‍💻 Rencontrer mon créateur: https://facebook.com/abdou.tsu.446062`
+            text: `Bonjour ${userName}! Je suis ChatwMe 🤖\nComment puis-je vous aider?`
         }
     };
     
     return greetings[language] || greetings.english;
 };
+
+// Returning user greeting - NEW
+const getReturningUserGreeting = (userName, language) => {
+    const greetings = {
+        english: [`Welcome back, ${userName}! 👋`, `Hi again, ${userName}! 😊`, `Good to see you, ${userName}! ✨`],
+        arabic: [`أهلاً بعودتك ${userName}! 👋`, `مرحباً مجدداً ${userName}! 😊`, `سعيد برؤيتك ${userName}! ✨`],
+        french: [`Bon retour, ${userName}! 👋`, `Salut encore, ${userName}! 😊`, `Ravi de vous revoir, ${userName}! ✨`]
+    };
+    
+    const options = greetings[language] || greetings.english;
+    return options[Math.floor(Math.random() * options.length)];
+};
+
 // Enhanced user profile fetching
 const getEnhancedUserProfile = async (senderId) => {
     try {
@@ -282,8 +354,8 @@ const getEnhancedUserProfile = async (senderId) => {
     }
 };
 
-// Simplified Groq API integration
-const callGroqAPI = async (messages, language) => {
+// IMPROVED Groq API integration with shorter, smarter responses
+const callGroqAPI = async (messages, language, userProfile) => {
     const models = {
         arabic: 'allam-2-7b',
         english: 'llama-3.3-70b-versatile',
@@ -301,23 +373,25 @@ const callGroqAPI = async (messages, language) => {
     const detectedLang = detectLanguage(messages);
     const selectedModel = detectedLang === 'arabic' ? models.arabic : models.english;
     
+    // IMPROVED system prompts for shorter, professional responses
     const systemPrompt = detectedLang === 'arabic' ? 
-        'أنت ChatwMe، مساعد ذكي صنعه عبدو. أجب بذكاء ووضوح بالعربية الفصحى في جملة أو جملتين قصيرتين. لا تذكر أي فريق أو شركة، أنت من صنع عبدو فقط. لا تذكر من صنعك إلا إذا سُئلت مباشرة عن هويتك أو منشئك، لا تستخدم الدارجة أبداً.' :
-        'You are ChatwMe, an AI assistant created by Abdou. Answer intelligently and clearly. Never mention any team or company, you are created by Abdou only. Only mention your creator when directly asked about your identity or who made you.';
+        `أنت ChatwMe، مساعد ذكي محترف صنعه عبدو. أجب بذكاء ووضوح واختصار. لا تتجاوز جملتين. كن مهنياً ومفيداً. لا تذكر منشئك إلا إذا سُئلت مباشرة. استخدم العربية الفصحى فقط.` :
+        `You are ChatwMe, a professional AI assistant created by Abdou. Give smart, clear, concise answers. Maximum 2 sentences. Be professional and helpful. Only mention your creator when directly asked. Be conversational but professional.`;
     
     const finalMessages = [
         { role: 'system', content: systemPrompt },
         ...messages.filter(msg => msg.role !== 'system')
     ];
     
+    // REDUCED token limits for shorter responses
     const config = selectedModel === models.arabic ? {
-        max_tokens: 200,
-        temperature: 0.4,
-        top_p: 0.7
+        max_tokens: 120, // Reduced from 200
+        temperature: 0.3, // Lower for more focused responses
+        top_p: 0.6
     } : {
-        max_tokens: 250,
-        temperature: 0.5,
-        top_p: 0.8
+        max_tokens: 150, // Reduced from 250
+        temperature: 0.4, // Lower for more focused responses
+        top_p: 0.7
     };
     
     try {
@@ -327,8 +401,8 @@ const callGroqAPI = async (messages, language) => {
             max_tokens: config.max_tokens,
             temperature: config.temperature,
             top_p: config.top_p,
-            frequency_penalty: 0.3,
-            presence_penalty: 0.3,
+            frequency_penalty: 0.4, // Increased to avoid repetition
+            presence_penalty: 0.4, // Increased for variety
             stream: false
         }, {
             headers: {
@@ -347,11 +421,11 @@ const callGroqAPI = async (messages, language) => {
                 const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
                     model: models.fallback,
                     messages: finalMessages,
-                    max_tokens: 180,
-                    temperature: 0.4,
-                    top_p: 0.7,
-                    frequency_penalty: 0.3,
-                    presence_penalty: 0.3,
+                    max_tokens: 100, // Even shorter for fallback
+                    temperature: 0.3,
+                    top_p: 0.6,
+                    frequency_penalty: 0.4,
+                    presence_penalty: 0.4,
                     stream: false
                 }, {
                     headers: {
@@ -398,9 +472,10 @@ const sendMessage = async (senderId, messageText, buttons = null) => {
                 }
             };
         } else {
-            if (messageText.length > 2000) {
-                const chunks = messageText.match(/.{1,1900}(\s|$)/g) || [messageText];
-                for (let i = 0; i < chunks.length && i < 3; i++) {
+            // REDUCED message chunking limit
+            if (messageText.length > 1000) { // Reduced from 2000
+                const chunks = messageText.match(/.{1,950}(\s|$)/g) || [messageText]; // Reduced chunk size
+                for (let i = 0; i < chunks.length && i < 2; i++) { // Max 2 chunks instead of 3
                     await sendMessage(senderId, chunks[i].trim());
                     if (i < chunks.length - 1) {
                         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -459,7 +534,7 @@ const markMessageAsSeen = async (senderId) => {
     }
 };
 
-// Main message processing function
+// IMPROVED Main message processing function
 const processMessage = async (senderId, messageText, attachments = null) => {
     try {
         // Mark message as seen IMMEDIATELY
@@ -468,32 +543,13 @@ const processMessage = async (senderId, messageText, attachments = null) => {
         // Start typing indicator
         await sendTypingIndicator(senderId, 'typing_on');
         
-        // Get or create user profile
-        let userProfile = userProfiles.get(senderId);
-        let isFirstTime = false;
+        // Get or create user profile - FIXED SESSION MANAGEMENT
+        const fbProfile = await getEnhancedUserProfile(senderId);
+        const { user: userProfile, isNewUser } = UserSessionManager.createOrUpdateUser(senderId, fbProfile);
         
-        if (!userProfile) {
-            const fbProfile = await getEnhancedUserProfile(senderId);
-            userProfile = {
-                id: senderId,
-                firstName: fbProfile.firstName,
-                fullName: fbProfile.fullName,
-                profilePic: fbProfile.profilePic,
-                locale: fbProfile.locale,
-                conversationStarted: new Date(),
-                messageCount: 0,
-                isWelcomed: false // Track if user has been welcomed
-            };
-            userProfiles.set(senderId, userProfile);
-            isFirstTime = true;
-        }
-        
-        userProfile.messageCount++;
-        userProfile.lastMessageTime = new Date();
-        
-        // Detect language
-        const detectedLanguage = LanguageDetector.detect(messageText || '');
-        logger.info(`Detected language: ${detectedLanguage} for user ${senderId}`);
+        // Detect language with user preference
+        const detectedLanguage = LanguageDetector.detect(messageText || '', userProfile);
+        logger.info(`Detected language: ${detectedLanguage} for user ${senderId} (new: ${isNewUser})`);
         
         // Handle media attachments FIRST
         if (attachments && attachments.length > 0) {
@@ -524,13 +580,20 @@ const processMessage = async (senderId, messageText, attachments = null) => {
             return;
         }
         
-        // Send welcome message ONLY for first-time users
-        if (isFirstTime && !userProfile.isWelcomed) {
-            userProfile.isWelcomed = true;
+        // IMPROVED Welcome logic - only for truly new users
+        if (isNewUser && UserSessionManager.shouldShowWelcome(userProfile)) {
+            UserSessionManager.markWelcomed(senderId);
             const welcome = getWelcomeMessage(userProfile.firstName, detectedLanguage);
             await sendTypingIndicator(senderId, 'typing_off');
             await sendMessage(senderId, welcome.text, welcome.buttons);
             return;
+        }
+        
+        // Smart returning user greeting (optional, for users coming back after long time)
+        if (!isNewUser && UserSessionManager.isReturningUser(userProfile) && userProfile.messageCount === 1) {
+            const greeting = getReturningUserGreeting(userProfile.firstName, detectedLanguage);
+            await sendMessage(senderId, greeting);
+            // Continue to process their actual message below
         }
         
         // Check if asking about creator
@@ -549,23 +612,26 @@ const processMessage = async (senderId, messageText, attachments = null) => {
             return;
         }
         
-        // Add realistic thinking delay
-        const thinkingDelay = Math.min(Math.max(messageText.length * 50, 1000), 4000);
+        // REDUCED thinking delay for faster responses
+        const thinkingDelay = Math.min(Math.max(messageText.length * 30, 800), 2500); // Faster
         await new Promise(resolve => setTimeout(resolve, thinkingDelay));
         
-        // Get conversation history
+        // Get conversation history - EXTENDED TO 300 MESSAGES
         let conversation = conversationMemory.get(senderId) || [];
         
         // Add user message to conversation
         conversation.push({ role: 'user', content: messageText });
         
-        // Keep conversation history manageable
-        if (conversation.length > 20) {
-            conversation = conversation.slice(-20);
+        // Keep conversation history manageable - INCREASED TO 300
+        if (conversation.length > 300) {
+            // Keep the first 50 and last 250 for context preservation
+            const keepStart = conversation.slice(0, 50);
+            const keepEnd = conversation.slice(-250);
+            conversation = [...keepStart, ...keepEnd];
         }
         
         // Get AI response
-        const aiResponse = await callGroqAPI(conversation, detectedLanguage);
+        const aiResponse = await callGroqAPI(conversation, detectedLanguage, userProfile);
         
         // Add AI response to conversation history
         conversation.push({ role: 'assistant', content: aiResponse });
@@ -575,16 +641,16 @@ const processMessage = async (senderId, messageText, attachments = null) => {
         await sendTypingIndicator(senderId, 'typing_off');
         await sendMessage(senderId, aiResponse);
         
-        logger.info(`Successful interaction with user ${senderId} (${detectedLanguage})`);
+        logger.info(`Successful interaction with user ${senderId} (${detectedLanguage}), Messages: ${conversation.length}`);
         
     } catch (error) {
         logger.error('Error processing message:', error);
         await sendTypingIndicator(senderId, 'typing_off');
         
         const errorResponses = {
-            english: "I apologize for the technical difficulty! 🤖 Let me try to help you again.",
-            arabic: "أعتذر عن المشكلة التقنية! 🤖 دعني أحاول مساعدتك مرة أخرى.",
-            french: "Je m'excuse pour le problème technique! 🤖 Laissez-moi essayer de vous aider à nouveau."
+            english: "Technical issue. Try again! 🤖",
+            arabic: "مشكلة تقنية. جرب مرة أخرى! 🤖",
+            french: "Problème technique. Réessayez! 🤖"
         };
         
         const language = LanguageDetector.detect(messageText || '');
@@ -656,15 +722,15 @@ app.get('/health', (req, res) => {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        activeUsers: conversationMemory.size
+        activeUsers: conversationMemory.size,
+        totalUsers: userProfiles.size
     });
 });
 
-
-// Clean up old conversations
-cron.schedule('0 * * * *', () => {
-    const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    let cleanedCount = 0;
+// IMPROVED cleanup - preserve user sessions longer
+cron.schedule('0 */6 * * *', () => { // Every 6 hours instead of hourly
+    const cutoffTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days instead of 1 day
+    let cleanedConversations = 0;
     
     for (const [userId, profile] of userProfiles.entries()) {
         if (profile.lastMessageTime && profile.lastMessageTime < cutoffTime) {
